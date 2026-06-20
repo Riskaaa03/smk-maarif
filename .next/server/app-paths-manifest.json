@@ -1,0 +1,14 @@
+{
+  "/page": "app/page.js",
+  "/program-keahlian/page": "app/program-keahlian/page.js",
+  "/program-keahlian/[slug]/page": "app/program-keahlian/[slug]/page.js",
+  "/api/galeri/route": "app/api/galeri/route.js",
+  "/api/berita/route": "app/api/berita/route.js",
+  "/api/mitra/route": "app/api/mitra/route.js",
+  "/galeri/page": "app/galeri/page.js",
+  "/humas/page": "app/humas/page.js",
+  "/api/alumni/route": "app/api/alumni/route.js",
+  "/api/pkl/route": "app/api/pkl/route.js",
+  "/berita/page": "app/berita/page.js",
+  "/berita/[slug]/page": "app/berita/[slug]/page.js"
+}
