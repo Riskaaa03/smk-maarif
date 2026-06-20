@@ -8,13 +8,13 @@ export const ppdbSchema = z.object({
   tanggalLahir: z.string().min(1, { message: 'Tanggal lahir wajib diisi' }),
   alamat: z.string().min(1, { message: 'Alamat wajib diisi' }),
   
-  // Format perbaikan pesan kustom enum Zod yang valid
+  // Perbaikan penulisan enum Zod agar lolos kompilasi (menyelesaikan image_878b5d.png)
   jenisKelamin: z.enum(['L', 'P'], {
     errorMap: (issue, ctx) => {
-      if (issue.code === z.ZodIssueCode.invalid_enum_value) {
-        return { message: 'Jenis kelamin harus dipilih' };
+      if (issue.code === 'invalid_enum_value') {
+        return { message: 'Jenis kelamin harus dipilih' }
       }
-      return { message: ctx.defaultError };
+      return { message: ctx.defaultError }
     }
   }),
   
@@ -23,13 +23,12 @@ export const ppdbSchema = z.object({
   email: z.string().email({ message: 'Format email tidak valid' }).optional().or(z.literal('')),
   asalSekolah: z.string().min(1, { message: 'Asal sekolah wajib diisi' }),
   
-  // Format perbaikan pesan kustom enum Zod untuk pilihan jurusan
   programKeahlianPilihan1: z.enum(['TBSM', 'TJKT', 'AKL'], {
     errorMap: (issue, ctx) => {
-      if (issue.code === z.ZodIssueCode.invalid_enum_value) {
-        return { message: 'Program keahlian harus dipilih' };
+      if (issue.code === 'invalid_enum_value') {
+        return { message: 'Program keahlian harus dipilih' }
       }
-      return { message: ctx.defaultError };
+      return { message: ctx.defaultError }
     }
   }),
 
