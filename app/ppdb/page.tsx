@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { submitPPDB } from '@/lib/actions/ppdb'
 import type { PPDBFormData } from '@/lib/validations/ppdb'
 
 // Import komponen pendukung
-import PPDBInfoSection from '@/components/ppdb/PPDBInfoSection' 
+import PPDBInfoSection from '@/components/ppdb/PPDBInfoSection'
 
 export default function PPDBPage() {
   const router = useRouter()
@@ -23,7 +23,7 @@ export default function PPDBPage() {
     const form = e.currentTarget
     const formData = new FormData(form)
 
-    // Pemetaan data yang aman dari konflik case-sensitive huruf besar/kecil
+    // PEMETAAN DATA: Mengubah key dari snake_case elemen HTML menjadi camelCase Zod Schema
     const data: PPDBFormData = {
       namaLengkap: formData.get('nama_siswa') as string,
       nik: formData.get('nik') as string,
@@ -31,18 +31,14 @@ export default function PPDBPage() {
       tempatLahir: formData.get('tempat_lahir') as string,
       tanggalLahir: formData.get('tanggal_lahir') as string,
       alamat: formData.get('alamat_siswa') as string,
-      
-      // Mengubah input select menjadi Huruf Kapital ("L" | "P")
       jenisKelamin: (formData.get('jenis_kelamin') as string || '').toUpperCase() as "L" | "P",
-      
       agama: formData.get('agama') as string,
       nomorHP: formData.get('nomor_wa') as string, 
       email: formData.get('email') as string || '',
       asalSekolah: formData.get('asal_sekolah') as string,
-      
-      // Mengubah input select menjadi Huruf Kapital ("TBSM" | "TJKT" | "AKL")
       programKeahlianPilihan1: (formData.get('jurusan') as string || '').toUpperCase() as "TBSM" | "TJKT" | "AKL",
       
+      // Properti tambahan bawaan skema agar tidak memicu missing property
       tahunLulus: new Date().getFullYear(),
       memilikiKip: (formData.get('memiliki_kip') as string || 'TIDAK').toUpperCase() as "YA" | "TIDAK",
       namaKip: formData.get('nama_kip') as string || '',
@@ -50,10 +46,10 @@ export default function PPDBPage() {
       namaOrangTua: formData.get('nama_orang_tua') as string,
       pekerjaanOrangTua: formData.get('pekerjaan_orang_tua') as string,
       direkomendasikanOleh: formData.get('direkomendasikan_oleh') as string || '',
-    } as any // Menggunakan fallback type assertion jika ada sisa properti tersembunyi
+    }
 
     try {
-      const result = (await submitPPDB(data)) as any
+      const result = await submitPPDB(data)
       
       if (result.success) {
         setSuccess(true)
@@ -62,19 +58,6 @@ export default function PPDBPage() {
         }, 1500)
       } else {
         setError(result.message || 'Terjadi kesalahan')
-        
-        if (result.errors) {
-          result.errors.forEach((err: any) => {
-            const field = document.querySelector(`[name="${err.field}"]`) as HTMLInputElement
-            if (field) {
-              field.classList.add('border-red-500')
-              const errorMsg = document.createElement('p')
-              errorMsg.className = 'text-red-500 text-xs mt-1'
-              errorMsg.textContent = err.message
-              field.parentElement?.appendChild(errorMsg)
-            }
-          })
-        }
       }
     } catch (err) {
       setError('Terjadi kesalahan server. Silakan coba lagi.')
@@ -220,12 +203,12 @@ export default function PPDBPage() {
                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all bg-white"
               >
                 <option value="">Pilih</option>
-                <option value="islam">Islam</option>
-                <option value="kristen">Kristen</option>
-                <option value="katolik">Katolik</option>
-                <option value="hindu">Hindu</option>
-                <option value="budha">Budha</option>
-                <option value="konghucu">Konghucu</option>
+                <option value="Islam">Islam</option>
+                <option value="Kristen">Kristen</option>
+                <option value="Katolik">Katolik</option>
+                <option value="Hindu">Hindu</option>
+                <option value="Budha">Budha</option>
+                <option value="Konghucu">Konghucu</option>
               </select>
             </div>
 
@@ -239,7 +222,7 @@ export default function PPDBPage() {
                 required
                 rows={3}
                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
-                placeholder="Alamat lengkap sesuai KTP"
+                placeholder="Alamat lengkap sesuai KK/KTP"
               />
             </div>
 
@@ -280,7 +263,7 @@ export default function PPDBPage() {
                 name="asal_sekolah"
                 required
                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
-                placeholder="Nama sekolah asal"
+                placeholder="Nama sekolah asal Mts/SMP"
               />
             </div>
 
@@ -365,7 +348,7 @@ export default function PPDBPage() {
                 name="pekerjaan_orang_tua"
                 required
                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
-                placeholder="Contoh: Petani, Guru, Wiraswasta"
+                placeholder="Contoh: Petani, Wiraswasta, PNS"
               />
             </div>
 
@@ -378,7 +361,7 @@ export default function PPDBPage() {
                 type="text"
                 name="direkomendasikan_oleh"
                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
-                placeholder="Nama yang merekomendasikan (opsional)"
+                placeholder="Nama perekomendasi (opsional)"
               />
             </div>
           </div>
@@ -395,14 +378,14 @@ export default function PPDBPage() {
                   <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  Memproses...
+                  Memproses Pendaftaran...
                 </>
               ) : (
-                'Daftar Sekarang'
+                'Kirim Formulir Pendaftaran'
               )}
             </button>
             <p className="text-xs text-gray-400 text-center mt-4">
-              * Data yang Anda isikan akan dijaga kerahasiaannya dan hanya digunakan untuk keperluan pendaftaran.
+              * Data yang diisikan akan langsung diverifikasi dan disimpan ke sistem database sekolah secara aman.
             </p>
           </div>
         </form>
