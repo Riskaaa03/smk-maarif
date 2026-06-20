@@ -1,4 +1,3 @@
-import 'server-only' // 👈 Mengamankan module agar tidak masuk ke client-side bundle
 import fs from 'fs'
 import path from 'path'
 
@@ -55,7 +54,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     program_slug TEXT NOT NULL,
     nama_kejuaraan TEXT NOT NULL,
-     tingkat TEXT NOT NULL,
+    tingkat TEXT NOT NULL,
     tahun INTEGER NOT NULL,
     keterangan TEXT,
     peringkat TEXT,
