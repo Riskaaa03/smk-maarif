@@ -9,7 +9,7 @@
 import nodemailer from 'nodemailer'
 import db from '@/lib/db'
 import { generateNomorPendaftaran } from '@/lib/ppdb'
-import { ppdbFormSchema, type PPDBFormData } from '@/lib/validations/ppdb'
+import { ppdbSchema, type PPDBFormData } from '@/lib/validations/ppdb'
 import type { PPDBSubmitResponse } from '@/types/index'
 
 // ============================================================
