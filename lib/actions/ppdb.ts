@@ -1,9 +1,8 @@
-'use server' // 👈 Wajib ada di baris pertama agar Next.js tahu ini dieksekusi di server
+'use server' // Wajib di baris pertama untuk Server Action
 
 import db from '@/lib/db'
 import { ppdbSchema, type PPDBFormData } from '@/lib/validations/ppdb'
 
-// Interface untuk response balik ke client component
 export interface PPDBSubmitResponse {
   success: boolean
   message?: string
@@ -11,24 +10,24 @@ export interface PPDBSubmitResponse {
   errors?: Array<{ field: string; message: string }>
 }
 
-// Fungsi pembantu untuk generate nomor pendaftaran otomatis secara acak/sequential
 async function generateNomorPendaftaran(): Promise<string> {
   const tahun = new Date().getFullYear()
-  const randomDigits = Math.floor(1000 + Math.random() * 9000) // 4 digit acak
+  const randomDigits = Math.floor(1000 + Math.random() * 9000)
   return `PPDB-${tahun}-${randomDigits}`
 }
 
 export async function submitPPDB(formData: PPDBFormData): Promise<PPDBSubmitResponse> {
-  // 1. Validasi ulang data di sisi server menggunakan ppdbSchema yang benar
+  // 1. Validasi ulang data di sisi server
   const parsed = ppdbSchema.safeParse(formData)
 
+  // JIKA GAGAL: Menggunakan parsed.error.issues (Syntax Zod yang benar)
   if (!parsed.success) {
     return {
       success: false,
       message: 'Validasi data gagal di server.',
-      errors: parsed.error.errors.map((err) => ({
-        field: err.path[0] as string,
-        message: err.message,
+      errors: parsed.error.issues.map((issue) => ({
+        field: issue.path[0] as string,
+        message: issue.message,
       })),
     }
   }
@@ -37,7 +36,7 @@ export async function submitPPDB(formData: PPDBFormData): Promise<PPDBSubmitResp
     const dataSiswa = parsed.data
     const nomorPendaftaran = await generateNomorPendaftaran()
 
-    // 2. Insert data langsung ke SQLite menggunakan sintaks better-sqlite3 native
+    // 2. Simpan ke database SQLite
     const stmt = db.prepare(`
       INSERT INTO ppdb (
         nomor_pendaftaran, nama_siswa, jurusan, nik, nisn, 
@@ -51,14 +50,14 @@ export async function submitPPDB(formData: PPDBFormData): Promise<PPDBSubmitResp
     stmt.run(
       nomorPendaftaran,
       dataSiswa.namaLengkap,
-      dataSiswa.programKeahlianPilihan1, // mapping ke kolom 'jurusan'
+      dataSiswa.programKeahlianPilihan1,
       dataSiswa.nik,
       dataSiswa.nisn,
       dataSiswa.tempatLahir,
       dataSiswa.tanggalLahir,
       dataSiswa.asalSekolah,
-      dataSiswa.alamat,                 // mapping ke kolom 'alamat_siswa'
-      dataSiswa.nomorHP,                // mapping ke kolom 'nomor_wa'
+      dataSiswa.alamat,
+      dataSiswa.nomorHP,
       dataSiswa.email || '',
       dataSiswa.jenisKelamin,
       dataSiswa.agama,
@@ -68,7 +67,7 @@ export async function submitPPDB(formData: PPDBFormData): Promise<PPDBSubmitResp
       dataSiswa.direkomendasikanOleh || null,
       dataSiswa.namaOrangTua,
       dataSiswa.pekerjaanOrangTua,
-      'pending'                         // status default awal
+      'pending'
     )
 
     return {
@@ -78,17 +77,16 @@ export async function submitPPDB(formData: PPDBFormData): Promise<PPDBSubmitResp
   } catch (error: any) {
     console.error('❌ PPDB_SUBMIT_SERVER_ERROR:', error)
     
-    // Deteksi jika NIK atau NISN duplikat di database
     if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       return {
         success: false,
-        message: 'Nomor NIK, NISN, atau Nomor Pendaftaran tersebut sudah terdaftar di sistem.',
+        message: 'Nomor NIK, NISN, atau Nomor Pendaftaran tersebut sudah terdaftar.',
       }
     }
 
     return {
       success: false,
-      message: 'Gagal menyimpan data ke database server. Silakan coba lagi nanti.',
+      message: 'Gagal menyimpan data ke server. Silakan coba lagi nanti.',
     }
   }
 }
