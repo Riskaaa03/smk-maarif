@@ -8,14 +8,9 @@ export const ppdbSchema = z.object({
   tanggalLahir: z.string().min(1, { message: 'Tanggal lahir wajib diisi' }),
   alamat: z.string().min(1, { message: 'Alamat wajib diisi' }),
   
-  // Perbaikan penulisan enum Zod agar lolos kompilasi (menyelesaikan image_878b5d.png)
-  jenisKelamin: z.enum(['L', 'P'], {
-    errorMap: (issue, ctx) => {
-      if (issue.code === 'invalid_enum_value') {
-        return { message: 'Jenis kelamin harus dipilih' }
-      }
-      return { message: ctx.defaultError }
-    }
+  // Solusi mutlak masalah overload enum (image_8786e9.png):
+  jenisKelamin: z.string().refine((val) => val === 'L' || val === 'P', {
+    message: 'Jenis kelamin harus dipilih',
   }),
   
   agama: z.string().min(1, { message: 'Agama wajib diisi' }),
@@ -23,17 +18,13 @@ export const ppdbSchema = z.object({
   email: z.string().email({ message: 'Format email tidak valid' }).optional().or(z.literal('')),
   asalSekolah: z.string().min(1, { message: 'Asal sekolah wajib diisi' }),
   
-  programKeahlianPilihan1: z.enum(['TBSM', 'TJKT', 'AKL'], {
-    errorMap: (issue, ctx) => {
-      if (issue.code === 'invalid_enum_value') {
-        return { message: 'Program keahlian harus dipilih' }
-      }
-      return { message: ctx.defaultError }
-    }
+  // Menggunakan cara refine yang sama agar aman dari error type signature
+  programKeahlianPilihan1: z.string().refine((val) => val === 'TBSM' || val === 'TJKT' || val === 'AKL', {
+    message: 'Program keahlian harus dipilih',
   }),
 
   tahunLulus: z.number().int().default(() => new Date().getFullYear()),
-  memilikiKip: z.enum(['YA', 'TIDAK']).default('TIDAK'),
+  memilikiKip: z.string().default('TIDAK'),
   namaKip: z.string().optional().or(z.literal('')),
   nomorKip: z.string().optional().or(z.literal('')),
   namaOrangTua: z.string().min(1, { message: 'Nama orang tua wajib diisi' }),
