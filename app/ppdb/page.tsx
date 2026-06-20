@@ -23,7 +23,7 @@ export default function PPDBPage() {
     const form = e.currentTarget
     const formData = new FormData(form)
 
-    // Pemetaan data disesuaikan dengan skema validasi internal (menggunakan nomorHP kapital)
+    // Pemetaan data yang aman dari konflik case-sensitive huruf besar/kecil
     const data: PPDBFormData = {
       namaLengkap: formData.get('nama_siswa') as string,
       nik: formData.get('nik') as string,
@@ -31,21 +31,20 @@ export default function PPDBPage() {
       tempatLahir: formData.get('tempat_lahir') as string,
       tanggalLahir: formData.get('tanggal_lahir') as string,
       alamat: formData.get('alamat_siswa') as string,
-      jenisKelamin: formData.get('jenis_kelamin') as "L" | "P",
+      
+      // Mengubah input select menjadi Huruf Kapital ("L" | "P")
+      jenisKelamin: (formData.get('jenis_kelamin') as string || '').toUpperCase() as "L" | "P",
+      
       agama: formData.get('agama') as string,
-      
-      // Menggunakan nomorHP (Huruf HP kapital sesuai rekomendasi compiler)
       nomorHP: formData.get('nomor_wa') as string, 
-      
       email: formData.get('email') as string || '',
       asalSekolah: formData.get('asal_sekolah') as string,
       
-      // Mengarahkan ke pilihan jurusan utama pada skema Anda
-      programKeahlianPilihan1: formData.get('jurusan') as "TBSM" | "TJKT" | "AKL",
+      // Mengubah input select menjadi Huruf Kapital ("TBSM" | "TJKT" | "AKL")
+      programKeahlianPilihan1: (formData.get('jurusan') as string || '').toUpperCase() as "TBSM" | "TJKT" | "AKL",
       
-      // Properti opsional bawaan skema agar tidak memicu error missing properties
       tahunLulus: new Date().getFullYear(),
-      memilikiKip: (formData.get('memiliki_kip') as string || 'TIDAK') as any,
+      memilikiKip: (formData.get('memiliki_kip') as string || 'TIDAK').toUpperCase() as "YA" | "TIDAK",
       namaKip: formData.get('nama_kip') as string || '',
       nomorKip: formData.get('nomor_kip') as string || '',
       namaOrangTua: formData.get('nama_orang_tua') as string,
