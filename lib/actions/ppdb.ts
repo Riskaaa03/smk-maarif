@@ -1,3 +1,4 @@
+'use server'
 import db from '@/lib/db'
 import { generateNomorPendaftaran } from '@/lib/ppdb'
 import { ppdbSchema, type PPDBFormData } from '@/lib/validations/ppdb'
