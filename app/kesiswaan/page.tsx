@@ -2,6 +2,9 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 
+// Memaksa halaman dirender secara dinamis guna menghindari error ECONNREFUSED saat npm run build
+export const dynamic = 'force-dynamic'
+
 // ============================================================
 // Metadata SEO
 // ============================================================
@@ -21,7 +24,7 @@ interface EkstrakurikulerItem {
   kategori: string
 }
 
- const EKSTRAKURIKULER: EkstrakurikulerItem[] = [
+const EKSTRAKURIKULER: EkstrakurikulerItem[] = [
   {
     nama: 'Pramuka',
     deskripsi:
@@ -36,7 +39,6 @@ interface EkstrakurikulerItem {
     emoji: '🏥',
     kategori: 'Pilihan',
   },
- 
   {
     nama: 'Futsal',
     deskripsi:
@@ -114,10 +116,11 @@ function OrnamenDivider() {
 async function fetchPrestasi() {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    // Memperbaiki bentrok aturan cache (menggunakan cache no-store murni agar real-time)
     const res = await fetch(`${baseUrl}/api/prestasi`, {
-      cache: 'no-store',
-      next: { revalidate: 60 }
+      cache: 'no-store'
     })
+
     const data = await res.json()
     if (data.success) {
       return data.items || data.data || []
@@ -135,6 +138,14 @@ async function fetchPrestasi() {
 export default async function KesiswaanPage() {
   // Ambil data prestasi dari database
   const prestasiData = await fetchPrestasi()
+
+  // Hitung jumlah program keahlian unik tanpa iterasi Set (menghindari error
+  // "Set<unknown> can only be iterated through when using the '--downlevelIteration' flag")
+  const programSlugCount = prestasiData.reduce((acc: Record<string, true>, p: any) => {
+    if (p.program_slug) acc[p.program_slug] = true
+    return acc
+  }, {} as Record<string, true>)
+  const jumlahProgramKeahlian = Object.keys(programSlugCount).length
 
   return (
     <main className="bg-[#f8f8f6] font-sans">
@@ -339,10 +350,10 @@ export default async function KesiswaanPage() {
                       emoji: '🥇',
                     },
                     { angka: new Date().getFullYear().toString(), label: 'Tahun Aktif', emoji: '📅' },
-                    { 
-                      angka: [...new Set(prestasiData.map((p: any) => p.program_slug))].length.toString(), 
-                      label: 'Program Keahlian', 
-                      emoji: '📚' 
+                    {
+                      angka: jumlahProgramKeahlian.toString(),
+                      label: 'Program Keahlian',
+                      emoji: '📚'
                     },
                   ].map((stat) => (
                     <div
