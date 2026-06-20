@@ -1,7 +1,10 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import type { ProgramKeahlian, PrestasiItem } from '@/types/index'
+import type { ProgramKeahlian } from '@/types/index'
+import db from '@/lib/db' // 👈 Mengimpor database langsung untuk bypass API fetch
+
+export const dynamicParams = true
 
 // ============================================================
 // Data statis program keahlian (hardcode — CMS belum tersedia)
@@ -18,6 +21,18 @@ type ProgramData = Omit<ProgramKeahlian, 'id' | 'foto' | 'updatedAt' | 'prestasi
   warnaAksen: string
   iconBg: string
   badgeBg: string
+}
+
+interface PrestasiData {
+  id: number
+  program_slug: string
+  nama_kejuaraan: string
+  tingkat: string
+  tahun: number
+  peringkat?: string
+  penyelenggara?: string
+  keterangan?: string
+  foto_url?: string
 }
 
 const PROGRAMS_DATA: Record<ProgramSlug, ProgramData> = {
@@ -139,12 +154,11 @@ export function generateStaticParams(): { slug: ProgramSlug }[] {
   return VALID_SLUGS.map((slug) => ({ slug }))
 }
 
-export async function generateMetadata({
-  params,
-}: {
+export async function generateMetadata(props: {
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
-  const { slug } = await params
+  const params = await props.params
+  const slug = params.slug
   const program = PROGRAMS_DATA[slug as ProgramSlug]
 
   if (!program) {
@@ -164,16 +178,6 @@ const TINGKAT_LABEL: Record<string, string> = {
   internasional: 'Internasional',
 }
 
-const TINGKAT_BADGE: Record<string, string> = {
-  kabupaten: 'bg-blue-100 text-blue-800',
-  provinsi: 'bg-purple-100 text-purple-800',
-  nasional: 'bg-amber-100 text-amber-800',
-  internasional: 'bg-red-100 text-red-800',
-}
-
-// ============================================================
-// Helper: warna aksen per program (inline style, bukan Tailwind dynamic)
-// ============================================================
 function getProgramAccent(warnaUtama: string) {
   switch (warnaUtama) {
     case 'blue':
@@ -211,33 +215,27 @@ function getProgramAccent(warnaUtama: string) {
   }
 }
 
-// ============================================================
-// Fungsi fetch prestasi dari database
-// ============================================================
-async function fetchPrestasiFromDB(programSlug: string) {
+// FIX TOTAL: Mengambil data langsung lewat modul SQLite native tanpa perantara HTTP Fetch
+function getPrestasiFromDBDirect(programSlug: string): PrestasiData[] {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-    const res = await fetch(`${baseUrl}/api/prestasi?program_slug=${programSlug}`, {
-      cache: 'no-store',
-      next: { revalidate: 60 }
-    })
-    const data = await res.json()
-    if (data.success) {
-      return data.items || []
-    }
-    return []
+    const stmt = db.prepare(`
+      SELECT id, program_slug, nama_kejuaraan, tingkat, tahun, peringkat, penyelenggara, keterangan, foto_url 
+      FROM prestasi 
+      WHERE program_slug = ? 
+      ORDER BY tahun DESC
+    `)
+    return stmt.all(programSlug.toLowerCase()) as PrestasiData[]
   } catch (error) {
-    console.error('Error fetching prestasi:', error)
+    console.error(`❌ Gagal mengambil data prestasi langsung dari SQLite untuk ${programSlug}:`, error)
     return []
   }
 }
 
-export default async function ProgramKeahlianDetailPage({
-  params,
-}: {
+export default async function ProgramKeahlianDetailPage(props: {
   params: Promise<{ slug: string }>
 }) {
-  const { slug } = await params
+  const params = await props.params
+  const slug = params.slug
 
   if (!VALID_SLUGS.includes(slug as ProgramSlug)) {
     notFound()
@@ -245,13 +243,12 @@ export default async function ProgramKeahlianDetailPage({
 
   const program = PROGRAMS_DATA[slug as ProgramSlug]
   const accent = getProgramAccent(program.warnaUtama)
-
-  // Ambil prestasi dari database
-  const prestasiList = await fetchPrestasiFromDB(slug)
+  
+  // Memanggil fungsi baru yang terhubung langsung ke SQLite
+  const prestasiList = getPrestasiFromDBDirect(slug)
 
   return (
     <main className="bg-[#f8f8f6] font-sans">
-
       {/* ── Hero ── */}
       <div className="relative min-h-[88vh] flex items-end overflow-hidden">
         <div className="absolute inset-0">
@@ -264,7 +261,6 @@ export default async function ProgramKeahlianDetailPage({
           <div className="absolute inset-0 bg-gradient-to-r from-[#0d2e1a]/40 to-transparent" />
         </div>
 
-        {/* Ornamen geometris */}
         <div className="absolute top-8 right-8 opacity-20 hidden md:block">
           <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
             <rect x="2" y="2" width="116" height="116" rx="2" stroke="#d4af37" strokeWidth="1.5" strokeDasharray="8 4"/>
@@ -275,8 +271,6 @@ export default async function ProgramKeahlianDetailPage({
 
         <div className="relative w-full pb-16 md:pb-24">
           <div className="container mx-auto px-6 md:px-10">
-
-            {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-xs text-white/50 mb-6">
               <Link href="/" className="hover:text-white/80 transition-colors">Beranda</Link>
               <span>/</span>
@@ -285,7 +279,6 @@ export default async function ProgramKeahlianDetailPage({
               <span className="text-white/80">{program.kode}</span>
             </div>
 
-            {/* Eyebrow */}
             <div className="flex items-center gap-3 mb-5">
               <div className="h-px w-8" style={{ backgroundColor: '#d4af37' }} />
               <span className="text-xs font-semibold tracking-[0.2em] uppercase" style={{ color: '#d4af37' }}>
@@ -332,7 +325,6 @@ export default async function ProgramKeahlianDetailPage({
           </div>
         </div>
 
-        {/* Scroll indicator */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
           <div className="flex flex-col items-center gap-1.5">
             <div className="w-px h-8 bg-gradient-to-b from-transparent to-white/40" />
@@ -345,12 +337,8 @@ export default async function ProgramKeahlianDetailPage({
 
       {/* ── Konten Utama ── */}
       <div id="deskripsi" className="container mx-auto px-6 md:px-10 py-16 md:py-24 space-y-24 md:space-y-32">
-
-        {/* ── 1. DESKRIPSI ── */}
         <section>
           <div className="grid md:grid-cols-[1fr_2.5fr] gap-12 md:gap-16 items-start max-w-5xl mx-auto">
-
-            {/* Label kiri — sticky */}
             <div className="md:sticky md:top-8 space-y-4">
               <div className="flex items-center gap-2.5 mb-2">
                 <div className="h-px w-6 bg-[#1a5c3a]" />
@@ -360,7 +348,6 @@ export default async function ProgramKeahlianDetailPage({
                 {program.kode}
               </h2>
 
-              {/* Logo program */}
               <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-100 shadow-sm" style={{ backgroundColor: accent.accentLight }}>
                 {program.kode === 'TBSM' && (
                   <img src="/images/program/Logo_TBSM.png" alt="Logo TBSM" className="w-full h-full object-contain p-2" />
@@ -378,7 +365,6 @@ export default async function ProgramKeahlianDetailPage({
               </p>
             </div>
 
-            {/* Deskripsi lengkap */}
             <div className="border-l-2 border-[#1a5c3a]/15 pl-8 md:pl-12">
               <p className="text-gray-700 leading-[1.9] text-[0.95rem]">
                 {program.deskripsiLengkap}
@@ -394,7 +380,6 @@ export default async function ProgramKeahlianDetailPage({
           </div>
         </section>
 
-        {/* Divider ornamen */}
         <div className="flex items-center justify-center gap-4 opacity-25 max-w-5xl mx-auto">
           <div className="h-px flex-1 bg-[#1a5c3a]" />
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -403,7 +388,6 @@ export default async function ProgramKeahlianDetailPage({
           <div className="h-px flex-1 bg-[#1a5c3a]" />
         </div>
 
-        {/* ── 2. KOMPETENSI ── */}
         <section>
           <div className="max-w-5xl mx-auto">
             <div className="flex items-center gap-2.5 mb-3">
@@ -434,7 +418,6 @@ export default async function ProgramKeahlianDetailPage({
           </div>
         </section>
 
-        {/* Divider ornamen */}
         <div className="flex items-center justify-center gap-4 opacity-25 max-w-5xl mx-auto">
           <div className="h-px flex-1 bg-[#1a5c3a]" />
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -443,7 +426,6 @@ export default async function ProgramKeahlianDetailPage({
           <div className="h-px flex-1 bg-[#1a5c3a]" />
         </div>
 
-        {/* ── 3. PROSPEK KERJA ── */}
         <section>
           <div className="max-w-5xl mx-auto">
             <div className="flex items-center gap-2.5 mb-3">
@@ -472,7 +454,6 @@ export default async function ProgramKeahlianDetailPage({
           </div>
         </section>
 
-        {/* Divider ornamen */}
         <div className="flex items-center justify-center gap-4 opacity-25 max-w-5xl mx-auto">
           <div className="h-px flex-1 bg-[#1a5c3a]" />
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -481,95 +462,88 @@ export default async function ProgramKeahlianDetailPage({
           <div className="h-px flex-1 bg-[#1a5c3a]" />
         </div>
 
-        {/* ── 4. PRESTASI ── */}
-
-<section>
-  <div className="max-w-5xl mx-auto">
-    <div className="flex items-center gap-2.5 mb-3">
-      <div className="h-px w-6 bg-[#1a5c3a]" />
-      <span className="text-[#1a5c3a] text-xs font-semibold tracking-[0.18em] uppercase">Pencapaian</span>
-    </div>
-    <h2 className="font-serif text-3xl md:text-4xl font-bold text-[#111827] mb-2">
-      Prestasi Program Keahlian
-    </h2>
-    <p className="text-gray-400 text-sm mb-10">Berbagai pencapaian yang telah diraih oleh siswa dan tim</p>
-
-    {prestasiList.length > 0 ? (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {prestasiList.map((prestasi: any, idx: number) => (
-          <div
-            key={prestasi.id || idx}
-            className="group bg-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden"
-          >
-            {/* Foto */}
-            <div className="relative h-52 bg-gray-100 overflow-hidden">
-              {prestasi.foto_url ? (
-                <img
-                  src={prestasi.foto_url}
-                  alt={prestasi.nama_kejuaraan}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-                  <span className="text-5xl opacity-20">🏆</span>
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-              <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
-                <span className="text-white text-sm font-medium">
-                  {prestasi.tahun}
-                </span>
-                {prestasi.peringkat && prestasi.peringkat !== '' && (
-                  <span className="text-white/90 text-xs font-semibold bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
-                    {prestasi.peringkat}
-                  </span>
-                )}
-              </div>
+        <section>
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="h-px w-6 bg-[#1a5c3a]" />
+              <span className="text-[#1a5c3a] text-xs font-semibold tracking-[0.18em] uppercase">Pencapaian</span>
             </div>
+            <h2 className="font-serif text-3xl md:text-4xl font-bold text-[#111827] mb-2">
+              Prestasi Program Keahlian
+            </h2>
+            <p className="text-gray-400 text-sm mb-10">Berbagai pencapaian yang telah diraih oleh siswa dan tim</p>
 
-            {/* Konten */}
-            <div className="p-5">
-              <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
-                <span>{TINGKAT_LABEL[prestasi.tingkat] || prestasi.tingkat}</span>
-                {prestasi.penyelenggara && prestasi.penyelenggara !== '' && (
-                  <>
-                    <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                    <span>{prestasi.penyelenggara}</span>
-                  </>
-                )}
+            {prestasiList.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {prestasiList.map((prestasi, idx) => (
+                  <div
+                    key={prestasi.id || idx}
+                    className="group bg-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden"
+                  >
+                    <div className="relative h-52 bg-gray-100 overflow-hidden">
+                      {prestasi.foto_url ? (
+                        <img
+                          src={prestasi.foto_url}
+                          alt={prestasi.nama_kejuaraan}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+                          <span className="text-5xl opacity-20">🏆</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                      <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
+                        <span className="text-white text-sm font-medium">
+                          {prestasi.tahun}
+                        </span>
+                        {prestasi.peringkat && prestasi.peringkat !== '' && (
+                          <span className="text-white/90 text-xs font-semibold bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
+                            {prestasi.peringkat}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
+                        <span>{TINGKAT_LABEL[prestasi.tingkat] || prestasi.tingkat}</span>
+                        {prestasi.penyelenggara && prestasi.penyelenggara !== '' && (
+                          <>
+                            <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                            <span>{prestasi.penyelenggara}</span>
+                          </>
+                        )}
+                      </div>
+                      <h3 className="font-semibold text-[#111827] text-base leading-snug">
+                        {prestasi.nama_kejuaraan}
+                      </h3>
+                      {prestasi.keterangan && prestasi.keterangan !== '' && (
+                        <p className="text-sm text-gray-500 mt-2 line-clamp-2">
+                          {prestasi.keterangan}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <h3 className="font-semibold text-[#111827] text-base leading-snug">
-                {prestasi.nama_kejuaraan}
-              </h3>
-              {prestasi.keterangan && prestasi.keterangan !== '' && (
-                <p className="text-sm text-gray-500 mt-2 line-clamp-2">
-                  {prestasi.keterangan}
-                </p>
-              )}
-            </div>
+            ) : (
+              <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
+                <div className="text-4xl mb-3 opacity-20">🏆</div>
+                <p className="text-gray-500 font-medium text-sm">Belum ada data prestasi untuk program ini</p>
+                <p className="text-xs text-gray-400 mt-1">Admin dapat menambahkan prestasi melalui panel admin</p>
+              </div>
+            )}
           </div>
-        ))}
-      </div>
-    ) : (
-      <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
-        <div className="text-4xl mb-3 opacity-20">🏆</div>
-        <p className="text-gray-500 font-medium text-sm">Belum ada data prestasi untuk program ini</p>
-        <p className="text-xs text-gray-400 mt-1">Admin dapat menambahkan prestasi melalui panel admin</p>
-      </div>
-    )}
-  </div>
-</section>
+        </section>
 
-        {/* ── CTA PPDB ── */}
         <div className="max-w-5xl mx-auto">
           <div className="bg-[#0d2e1a] rounded-2xl p-10 md:p-14 text-center relative overflow-hidden">
-            {/* Ornamen background */}
             <div className="absolute inset-0 opacity-5">
               <div className="absolute top-0 left-0 w-64 h-64 rounded-full border border-white -translate-x-1/2 -translate-y-1/2" />
               <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full border border-white translate-x-1/4 translate-y-1/4" />
             </div>
 
-            {/* Aksen warna program — garis tipis di atas */}
             <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl" style={{ backgroundColor: accent.accent }} />
 
             <div className="relative">
