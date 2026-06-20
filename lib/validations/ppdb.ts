@@ -1,4 +1,4 @@
-import { z } from 'z.zod' // atau 'zod' tergantung setup instalisasi Anda
+import { z } from 'zod'
 
 export const ppdbSchema = z.object({
   namaLengkap: z.string().min(1, { message: 'Nama lengkap wajib diisi' }),
@@ -8,7 +8,7 @@ export const ppdbSchema = z.object({
   tanggalLahir: z.string().min(1, { message: 'Tanggal lahir wajib diisi' }),
   alamat: z.string().min(1, { message: 'Alamat wajib diisi' }),
   
-  // Perbaikan Sintaks Zod Enum untuk jenisKelamin
+  // Format perbaikan pesan kustom enum Zod yang valid
   jenisKelamin: z.enum(['L', 'P'], {
     errorMap: (issue, ctx) => {
       if (issue.code === z.ZodIssueCode.invalid_enum_value) {
@@ -23,7 +23,7 @@ export const ppdbSchema = z.object({
   email: z.string().email({ message: 'Format email tidak valid' }).optional().or(z.literal('')),
   asalSekolah: z.string().min(1, { message: 'Asal sekolah wajib diisi' }),
   
-  // Perbaikan Sintaks Zod Enum untuk Jurusan
+  // Format perbaikan pesan kustom enum Zod untuk pilihan jurusan
   programKeahlianPilihan1: z.enum(['TBSM', 'TJKT', 'AKL'], {
     errorMap: (issue, ctx) => {
       if (issue.code === z.ZodIssueCode.invalid_enum_value) {
