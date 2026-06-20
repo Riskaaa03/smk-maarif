@@ -1,210 +1,402 @@
-import type { Metadata } from 'next'
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import PPDBInfoSection from '@/components/ppdb/PPDBInfoSection'
-import AlurPendaftaran from '@/components/ppdb/AlurPendaftaran'
-import PersyaratanDokumen from '@/components/ppdb/PersyaratanDokumen'
-import FormPPDB from '@/components/ppdb/FormPPDB'
+import { submitPPDB } from '@/lib/actions/ppdb'
+import type { PPDBFormData } from '@/lib/validations/ppdb'
 
-// ============================================================
-// SSR — formulir dinamis, data real-time (Requirements: 8.1–8.6)
-// ============================================================
-export const dynamic = 'force-dynamic'
+// 🔽 TAMBAHKAN BARIS IMPORT INI (Sesuaikan dengan lokasi file Anda)
+import PPDBInfoSection from '@/components/ppdb/PPDBInfoSection' 
+// Jika Anda juga memanggil AlurPendaftaran di bawahnya, pastikan di-import juga:
+// import AlurPendaftaran from '@/components/AlurPendaftaran'
 
-// ============================================================
-// Metadata SEO
-// ============================================================
-export const metadata: Metadata = {
-  title: 'PPDB - Penerimaan Peserta Didik Baru',
-  description:
-    "Daftar sekarang! Informasi lengkap PPDB SMK Ma'arif NU 01 Karangkobar: jadwal pendaftaran, alur, persyaratan dokumen, dan formulir pendaftaran online.",
-}
-
-// ============================================================
-// Halaman PPDB — Server Component (SSR)
-// ============================================================
 export default function PPDBPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    const form = e.currentTarget
+    const formData = new FormData(form)
+
+    const data: PPDBFormData = {
+      nama_siswa: formData.get('nama_siswa') as string,
+      nik: formData.get('nik') as string,
+      nisn: formData.get('nisn') as string,
+      tempat_lahir: formData.get('tempat_lahir') as string,
+      tanggal_lahir: formData.get('tanggal_lahir') as string,
+      alamat_siswa: formData.get('alamat_siswa') as string,
+      jenis_kelamin: formData.get('jenis_kelamin') as string,
+      agama: formData.get('agama') as string,
+      nomor_wa: formData.get('nomor_wa') as string,
+      email: formData.get('email') as string || '',
+      asal_sekolah: formData.get('asal_sekolah') as string,
+      jurusan: formData.get('jurusan') as string,
+      memiliki_kip: formData.get('memiliki_kip') as string || 'TIDAK',
+      nama_kip: formData.get('nama_kip') as string || '',
+      nomor_kip: formData.get('nomor_kip') as string || '',
+      nama_orang_tua: formData.get('nama_orang_tua') as string,
+      pekerjaan_orang_tua: formData.get('pekerjaan_orang_tua') as string,
+      direkomendasikan_oleh: formData.get('direkomendasikan_oleh') as string || '',
+    }
+
+    try {
+      // Menggunakan type casting 'as any' untuk menghindari batasan tipe PPDBSubmitResponse
+      const result = (await submitPPDB(data)) as any
+      
+      if (result.success) {
+        setSuccess(true)
+        setTimeout(() => {
+          router.push(`/ppdb/success?nomor=${result.nomorPendaftaran}`)
+        }, 1500)
+      } else {
+        setError(result.message || 'Terjadi kesalahan')
+        
+        if (result.errors) {
+          // Tampilkan error per field jika ada data error dari backend
+          result.errors.forEach((err: any) => {
+            const field = document.querySelector(`[name="${err.field}"]`) as HTMLInputElement
+            if (field) {
+              field.classList.add('border-red-500')
+              const errorMsg = document.createElement('p')
+              errorMsg.className = 'text-red-500 text-xs mt-1'
+              errorMsg.textContent = err.message
+              field.parentElement?.appendChild(errorMsg)
+            }
+          })
+        }
+      }
+    } catch (err) {
+      setError('Terjadi kesalahan server. Silakan coba lagi.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <main>
-      {/* ── Hero Split Layout ── */}
-      <div className="relative overflow-hidden bg-nu-green-900">
-        {/* Decorative circle */}
-        <div
-          className="pointer-events-none absolute -bottom-16 -left-10 h-48 w-48 rounded-full bg-amber-500/[0.07]"
-          aria-hidden="true"
-        />
-        {/* Right-panel subtle overlay */}
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 w-1/2 border-l border-white/[0.06] bg-white/[0.025]"
-          aria-hidden="true"
-        />
+    <main className="bg-[#f8f8f6] min-h-screen py-16">
+      <div className="container mx-auto px-6 max-w-4xl">
+        {/* Header */}
+        <div className="mb-8">
+          <Link href="/" className="text-[#1a5c3a] hover:underline text-sm">
+            &larr; Kembali ke Beranda
+          </Link>
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-[#111827] mt-4">
+            Pendaftaran PPDB
+          </h1>
+          <p className="text-gray-500 mt-2">
+            Isi formulir di bawah ini untuk mendaftar sebagai peserta didik baru
+            SMK Ma&apos;arif NU 01 Karangkobar.
+          </p>
+        </div>
 
-        <div className="relative mx-auto grid max-w-6xl grid-cols-1 md:grid-cols-2">
-          {/* Left: headline */}
-          <div className="flex flex-col justify-center px-8 py-14 md:px-12 md:py-16 lg:px-16">
-            <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-400">
-              SMK Ma&apos;arif NU 01 Karangkobar
-            </p>
-            <h1 className="mb-3 font-serif text-5xl font-bold leading-[1.05] text-white md:text-6xl">
-              PPDB<br />2026/2027
-            </h1>
-            <p className="mb-9 max-w-sm text-sm leading-relaxed text-white/60">
-              Penerimaan Peserta Didik Baru — Daftarkan diri Anda sekarang dan
-              mulai perjalanan bersama kami.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <a
-                href="#form-ppdb-heading"
-                className="inline-flex items-center gap-2 rounded bg-amber-500 px-6 py-3 text-[13px] font-semibold text-white transition-colors hover:bg-amber-600"
-              >
-                Daftar Sekarang
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </a>
-              <a
-                href="#informasi"
-                className="inline-flex items-center gap-2 rounded border border-white/25 px-6 py-3 text-[13px] font-semibold text-white/80 transition-colors hover:bg-white/10"
-              >
-                Lihat Informasi
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              </a>
-            </div>
+        {/* Success Message */}
+        {success && (
+          <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-xl mb-6">
+            ✅ Pendaftaran berhasil! Mengalihkan ke halaman sukses...
           </div>
+        )}
 
-          {/* Right: info cards */}
-          <div className="flex flex-col justify-center gap-3 px-8 py-10 md:px-10 md:py-12">
-            {/* Periode */}
-            <div className="flex items-start gap-3.5 rounded-md border border-white/10 bg-white/[0.07] p-4">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500 mt-0.5">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <rect x="3" y="4" width="18" height="18" rx="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-              </div>
-              <div>
-                <p className="mb-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-white/40">
-                  Periode Pendaftaran
-                </p>
-                <p className="text-sm font-medium text-white">
-                  11 Februari – 04 Juli 2026
-                </p>
-              </div>
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6">
+            ❌ {error}
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Nama Siswa */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Nama Lengkap <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="nama_siswa"
+                required
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="Contoh: Ahmad Fauzi"
+              />
+            </div>
+
+            {/* NIK */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                NIK <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="nik"
+                required
+                maxLength={16}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="16 digit"
+              />
+            </div>
+
+            {/* NISN */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                NISN <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="nisn"
+                required
+                maxLength={10}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="10 digit"
+              />
+            </div>
+
+            {/* Tempat Lahir */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Tempat Lahir <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="tempat_lahir"
+                required
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="Contoh: Banjarnegara"
+              />
+            </div>
+
+            {/* Tanggal Lahir */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Tanggal Lahir <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                name="tanggal_lahir"
+                required
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+              />
+            </div>
+
+            {/* Jenis Kelamin */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Jenis Kelamin <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="jenis_kelamin"
+                required
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all bg-white"
+              >
+                <option value="">Pilih</option>
+                <option value="L">Laki-laki</option>
+                <option value="P">Perempuan</option>
+              </select>
+            </div>
+
+            {/* Agama */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Agama <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="agama"
+                required
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all bg-white"
+              >
+                <option value="">Pilih</option>
+                <option value="islam">Islam</option>
+                <option value="kristen">Kristen</option>
+                <option value="katolik">Katolik</option>
+                <option value="hindu">Hindu</option>
+                <option value="budha">Budha</option>
+                <option value="konghucu">Konghucu</option>
+              </select>
+            </div>
+
+            {/* Alamat */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Alamat Lengkap <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                name="alamat_siswa"
+                required
+                rows={3}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="Alamat lengkap sesuai KTP"
+              />
+            </div>
+
+            {/* Nomor WA */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Nomor WhatsApp <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="nomor_wa"
+                required
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="Contoh: 081234567890"
+              />
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="email@example.com"
+              />
+            </div>
+
+            {/* Asal Sekolah */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Asal Sekolah <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="asal_sekolah"
+                required
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="Nama sekolah asal"
+              />
             </div>
 
             {/* Jurusan */}
-            <div className="flex items-start gap-3.5 rounded-md border border-white/10 bg-white/[0.07] p-4">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500 mt-0.5">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                  <path d="M2 17l10 5 10-5" />
-                  <path d="M2 12l10 5 10-5" />
-                </svg>
-              </div>
-              <div>
-                <p className="mb-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-white/40">
-                  Jurusan Tersedia
-                </p>
-                <p className="text-sm font-medium text-white">
-                  TKJ · Farmasi · Akuntansi
-                </p>
-              </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Pilih Jurusan <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="jurusan"
+                required
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all bg-white"
+              >
+                <option value="">Pilih Jurusan</option>
+                <option value="tbsm">TBSM - Teknik &amp; Bisnis Sepeda Motor</option>
+                <option value="tjkt">TJKT - Teknik Jaringan Komputer &amp; Telekomunikasi</option>
+                <option value="akl">AKL - Akuntansi &amp; Keuangan Lembaga</option>
+              </select>
             </div>
 
-            {/* Pengumuman */}
-            <div className="flex items-start gap-3.5 rounded-md border border-white/10 bg-white/[0.07] p-4">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500 mt-0.5">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-              </div>
-              <div>
-                <p className="mb-0.5 text-[10px] font-medium uppercase tracking-[0.1em] text-white/40">
-                  Pengumuman
-                </p>
-                <p className="text-sm font-medium text-white">06 Juli 2026</p>
-              </div>
+            {/* KIP */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Memiliki Kartu Indonesia Pintar (KIP)?
+              </label>
+              <select
+                name="memiliki_kip"
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all bg-white"
+              >
+                <option value="TIDAK">Tidak</option>
+                <option value="YA">Ya</option>
+              </select>
+            </div>
+
+            {/* Nama KIP */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Nama di KIP
+              </label>
+              <input
+                type="text"
+                name="nama_kip"
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="Nama sesuai KIP"
+              />
+            </div>
+
+            {/* Nomor KIP */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Nomor KIP
+              </label>
+              <input
+                type="text"
+                name="nomor_kip"
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="Nomor KIP"
+              />
+            </div>
+
+            {/* Nama Orang Tua */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Nama Orang Tua / Wali <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="nama_orang_tua"
+                required
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="Nama ayah/ibu/wali"
+              />
+            </div>
+
+            {/* Pekerjaan Orang Tua */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Pekerjaan Orang Tua <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="pekerjaan_orang_tua"
+                required
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="Contoh: Petani, Guru, Wiraswasta"
+              />
+            </div>
+
+            {/* Direkomendasikan oleh */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Direkomendasikan oleh
+              </label>
+              <input
+                type="text"
+                name="direkomendasikan_oleh"
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a5c3a] focus:border-transparent transition-all"
+                placeholder="Nama yang merekomendasikan (opsional)"
+              />
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* ── Main content ── */}
-      <div
-        className="mx-auto max-w-4xl px-4 py-16 space-y-16 sm:px-6 lg:px-8"
-        id="informasi"
-      >
-        {/* ── Section 1: Informasi PPDB (Req 8.1) ── */}
-        <PPDBInfoSection />
-
-        {/* ── Section 2: Alur Pendaftaran (Req 8.2) ── */}
-        <AlurPendaftaran />
-
-        {/* ── Section 3: Persyaratan Dokumen (Req 8.3) ── */}
-        <PersyaratanDokumen />
-
-        {/* ── Section 4: Formulir Pendaftaran (Req 8.4, 8.5, 8.6) ── */}
-        <section aria-labelledby="form-ppdb-heading" id="form-ppdb-heading">
-          <div className="mb-1 flex items-center gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-600">
-              Daftar Sekarang
-            </span>
-            <span className="h-px w-8 bg-amber-600/40" aria-hidden="true" />
-          </div>
-          <h2 className="mb-1 font-serif text-2xl font-bold text-gray-900">
-            Formulir Pendaftaran Online
-          </h2>
-          <p className="mb-8 max-w-xl text-sm leading-relaxed text-gray-500">
-            Isi formulir di bawah ini dengan data yang benar dan lengkap. Pastikan
-            alamat email yang Anda masukkan aktif karena konfirmasi pendaftaran
-            akan dikirim ke email tersebut.
-          </p>
-          <FormPPDB />
-        </section>
-
-        {/* ── CTA Kontak ── */}
-        <div className="grid grid-cols-1 items-center gap-8 rounded-xl bg-nu-green-800 p-8 sm:grid-cols-[1fr_auto] md:p-12">
-          <div>
-            <h2 className="mb-2 font-serif text-xl font-bold text-white">
-              Ada Pertanyaan?
-            </h2>
-            <p className="max-w-md text-sm leading-relaxed text-white/60">
-              Hubungi panitia PPDB SMK Ma&apos;arif NU 01 Karangkobar jika Anda
-              membutuhkan informasi lebih lanjut atau mengalami kendala dalam
-              proses pendaftaran.
+          {/* Submit Button */}
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#1a5c3a] hover:bg-[#0d2e1a] text-white font-semibold py-3.5 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Memproses...
+                </>
+              ) : (
+                'Daftar Sekarang'
+              )}
+            </button>
+            <p className="text-xs text-gray-400 text-center mt-4">
+              * Data yang Anda isikan akan dijaga kerahasiaannya dan hanya digunakan untuk keperluan pendaftaran.
             </p>
           </div>
-          <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:items-center">
-            <a
-              href="https://wa.me/6281234567890"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded bg-white px-5 py-2.5 text-[13px] font-semibold text-nu-green-800 transition-colors hover:bg-nu-green-50 whitespace-nowrap"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-4 w-4 shrink-0"
-                aria-hidden="true"
-              >
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
-                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.528 5.852L0 24l6.335-1.652A11.954 11.954 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.006-1.371l-.36-.213-3.727.972.993-3.62-.234-.373A9.818 9.818 0 0 1 2.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z" />
-              </svg>
-              Hubungi via WhatsApp
-            </a>
-            <Link
-              href="/profil"
-              className="inline-flex items-center justify-center gap-2 rounded border border-white/25 px-5 py-2.5 text-[13px] font-semibold text-white/80 transition-colors hover:bg-white/10 whitespace-nowrap"
-            >
-              Lihat Informasi Kontak
-            </Link>
-          </div>
-        </div>
+        </form>
       </div>
     </main>
   )
