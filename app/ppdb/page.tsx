@@ -6,9 +6,8 @@ import Link from 'next/link'
 import { submitPPDB } from '@/lib/actions/ppdb'
 import type { PPDBFormData } from '@/lib/validations/ppdb'
 
-// Baris import komponen pendukung
+// Import komponen pendukung
 import PPDBInfoSection from '@/components/ppdb/PPDBInfoSection' 
-// import AlurPendaftaran from '@/components/AlurPendaftaran'
 
 export default function PPDBPage() {
   const router = useRouter()
@@ -24,7 +23,7 @@ export default function PPDBPage() {
     const form = e.currentTarget
     const formData = new FormData(form)
 
-    // Perbaikan pemetaan properti dari snake_case ke camelCase sesuai skema PPDBFormData
+    // Perbaikan pemetaan properti agar 100% cocok dengan type PPDBFormData Anda
     const data: PPDBFormData = {
       namaLengkap: formData.get('nama_siswa') as string,
       nik: formData.get('nik') as string,
@@ -34,10 +33,16 @@ export default function PPDBPage() {
       alamat: formData.get('alamat_siswa') as string,
       jenisKelamin: formData.get('jenis_kelamin') as "L" | "P",
       agama: formData.get('agama') as string,
-      nomorWa: formData.get('nomor_wa') as string,
+      
+      // Menggunakan nomorHp sesuai dengan deteksi skema TypeScript Anda
+      nomorHp: formData.get('nomor_wa') as string, 
+      
       email: formData.get('email') as string || '',
       asalSekolah: formData.get('asal_sekolah') as string,
-      jurusan: formData.get('jurusan') as string,
+      
+      // Menggunakan programKeahlianPilihan1 sesuai dengan deteksi skema TypeScript Anda
+      programKeahlianPilihan1: formData.get('jurusan') as "TBSM" | "TJKT" | "AKL",
+      
       memilikiKip: formData.get('memiliki_kip') as string || 'TIDAK',
       namaKip: formData.get('nama_kip') as string || '',
       nomorKip: formData.get('nomor_kip') as string || '',
@@ -92,6 +97,11 @@ export default function PPDBPage() {
             Isi formulir di bawah ini untuk mendaftar sebagai peserta didik baru
             SMK Ma&apos;arif NU 01 Karangkobar.
           </p>
+        </div>
+
+        {/* Informasi PPDB Section */}
+        <div className="mb-6">
+          <PPDBInfoSection />
         </div>
 
         {/* Success Message */}
