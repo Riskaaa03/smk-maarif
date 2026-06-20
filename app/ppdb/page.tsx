@@ -6,9 +6,8 @@ import Link from 'next/link'
 import { submitPPDB } from '@/lib/actions/ppdb'
 import type { PPDBFormData } from '@/lib/validations/ppdb'
 
-// 🔽 TAMBAHKAN BARIS IMPORT INI (Sesuaikan dengan lokasi file Anda)
+// Baris import komponen pendukung
 import PPDBInfoSection from '@/components/ppdb/PPDBInfoSection' 
-// Jika Anda juga memanggil AlurPendaftaran di bawahnya, pastikan di-import juga:
 // import AlurPendaftaran from '@/components/AlurPendaftaran'
 
 export default function PPDBPage() {
@@ -25,29 +24,29 @@ export default function PPDBPage() {
     const form = e.currentTarget
     const formData = new FormData(form)
 
+    // Perbaikan pemetaan properti dari snake_case ke camelCase sesuai skema PPDBFormData
     const data: PPDBFormData = {
-      nama_siswa: formData.get('nama_siswa') as string,
+      namaLengkap: formData.get('nama_siswa') as string,
       nik: formData.get('nik') as string,
       nisn: formData.get('nisn') as string,
-      tempat_lahir: formData.get('tempat_lahir') as string,
-      tanggal_lahir: formData.get('tanggal_lahir') as string,
-      alamat_siswa: formData.get('alamat_siswa') as string,
-      jenis_kelamin: formData.get('jenis_kelamin') as string,
+      tempatLahir: formData.get('tempat_lahir') as string,
+      tanggalLahir: formData.get('tanggal_lahir') as string,
+      alamat: formData.get('alamat_siswa') as string,
+      jenisKelamin: formData.get('jenis_kelamin') as "L" | "P",
       agama: formData.get('agama') as string,
-      nomor_wa: formData.get('nomor_wa') as string,
+      nomorWa: formData.get('nomor_wa') as string,
       email: formData.get('email') as string || '',
-      asal_sekolah: formData.get('asal_sekolah') as string,
+      asalSekolah: formData.get('asal_sekolah') as string,
       jurusan: formData.get('jurusan') as string,
-      memiliki_kip: formData.get('memiliki_kip') as string || 'TIDAK',
-      nama_kip: formData.get('nama_kip') as string || '',
-      nomor_kip: formData.get('nomor_kip') as string || '',
-      nama_orang_tua: formData.get('nama_orang_tua') as string,
-      pekerjaan_orang_tua: formData.get('pekerjaan_orang_tua') as string,
-      direkomendasikan_oleh: formData.get('direkomendasikan_oleh') as string || '',
+      memilikiKip: formData.get('memiliki_kip') as string || 'TIDAK',
+      namaKip: formData.get('nama_kip') as string || '',
+      nomorKip: formData.get('nomor_kip') as string || '',
+      namaOrangTua: formData.get('nama_orang_tua') as string,
+      pekerjaanOrangTua: formData.get('pekerjaan_orang_tua') as string,
+      direkomendasikanOleh: formData.get('direkomendasikan_oleh') as string || '',
     }
 
     try {
-      // Menggunakan type casting 'as any' untuk menghindari batasan tipe PPDBSubmitResponse
       const result = (await submitPPDB(data)) as any
       
       if (result.success) {
@@ -59,7 +58,6 @@ export default function PPDBPage() {
         setError(result.message || 'Terjadi kesalahan')
         
         if (result.errors) {
-          // Tampilkan error per field jika ada data error dari backend
           result.errors.forEach((err: any) => {
             const field = document.querySelector(`[name="${err.field}"]`) as HTMLInputElement
             if (field) {
