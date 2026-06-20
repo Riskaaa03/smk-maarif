@@ -32,6 +32,7 @@ interface StatistikItem {
   emoji: string
   urutan: number
   status: 'aktif' | 'nonaktif'
+  thumbnail?: string | null
 }
 
 type ActiveTab = 'fasilitas' | 'sarana' | 'statistik'
@@ -89,17 +90,17 @@ export default function AdminSarpras() {
     reader.readAsDataURL(selectedFile)
 
     setLoadingUpload(true)
-    const formData = new FormData()
-    formData.append('file', selectedFile)
+    const formDataUpload = new FormData()
+    formDataUpload.append('file', selectedFile)
 
     try {
       const res = await fetch('/api/sarpras', {
         method: 'POST',
-        body: formData,
+        body: formDataUpload,
       })
-      
+
       const result = await res.json()
-      
+
       if (result.success) {
         setFormData(prev => ({ ...prev, thumbnail: result.imageUrl }))
         setMessage({ type: 'success', text: '✅ Gambar berhasil diupload!' })
@@ -118,9 +119,12 @@ export default function AdminSarpras() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.nama || !formData.deskripsi) {
-      setMessage({ type: 'error', text: 'Nama dan deskripsi wajib diisi!' })
+      setMessage({
+        type: 'error',
+        text: activeTab === 'statistik' ? 'Angka dan satuan wajib diisi!' : 'Nama dan deskripsi wajib diisi!'
+      })
       return
     }
 
@@ -129,15 +133,26 @@ export default function AdminSarpras() {
       : '/api/sarpras'
     const method = editingId ? 'PUT' : 'POST'
 
+    // Pemetaan data yang dikirim ke API agar sesuai dengan struktur database masing-masing tipe
+    const payload = activeTab === 'statistik'
+      ? {
+          tipe: 'statistik',
+          angka: formData.nama,
+          satuan: formData.deskripsi,
+          emoji: formData.emoji,
+          urutan: formData.urutan,
+          status: formData.status
+        }
+      : {
+          tipe: activeTab === 'fasilitas' ? 'fasilitas_utama' : 'sarana_pendukung',
+          ...formData
+        }
+
     try {
       const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipe: activeTab === 'fasilitas' ? 'fasilitas_utama' : 
-                activeTab === 'sarana' ? 'sarana_pendukung' : 'statistik',
-          ...formData
-        }),
+        body: JSON.stringify(payload),
       })
       const result = await res.json()
 
@@ -195,15 +210,22 @@ export default function AdminSarpras() {
 
   const handleEdit = (item: FasilitasItem | SaranaItem | StatistikItem) => {
     setEditingId(item.id)
+
     setFormData({
-      nama: 'nama' in item ? item.nama : '',
+      nama: 'nama' in item ? item.nama : ('angka' in item ? item.angka : ''),
       emoji: item.emoji || '',
-      deskripsi: 'deskripsi' in item ? item.deskripsi : '',
+      deskripsi: 'deskripsi' in item ? item.deskripsi : ('satuan' in item ? item.satuan : ''),
       thumbnail: item.thumbnail || '',
       urutan: item.urutan || 0,
       status: item.status || 'aktif'
     })
-    if (item.thumbnail) setPreview(item.thumbnail)
+
+    if (item.thumbnail) {
+      setPreview(item.thumbnail)
+    } else {
+      setPreview('')
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -261,15 +283,15 @@ export default function AdminSarpras() {
               <div className="text-3xl">{item.emoji || '📌'}</div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900">
-                  {'nama' in item ? item.nama : `${item.angka} ${item.satuan}`}
+                  {'nama' in item ? item.nama : `${(item as StatistikItem).angka} ${(item as StatistikItem).satuan}`}
                 </h3>
                 <p className="text-sm text-gray-500 line-clamp-1">
                   {'deskripsi' in item ? item.deskripsi : ''}
                 </p>
                 <div className="flex gap-3 mt-1 flex-wrap">
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    item.status === 'aktif' 
-                      ? 'bg-green-100 text-green-700' 
+                    item.status === 'aktif'
+                      ? 'bg-green-100 text-green-700'
                       : 'bg-gray-100 text-gray-500'
                   }`}>
                     {item.status}
@@ -334,8 +356,8 @@ export default function AdminSarpras() {
         {message.text && (
           <div
             className={`mb-6 rounded-xl p-4 flex items-center justify-between shadow-md ${
-              message.type === 'success' 
-                ? 'bg-green-50 text-green-700 border border-green-200' 
+              message.type === 'success'
+                ? 'bg-green-50 text-green-700 border border-green-200'
                 : 'bg-red-50 text-red-700 border border-red-200'
             }`}
           >
@@ -485,7 +507,7 @@ export default function AdminSarpras() {
                         <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP (Max 5MB)</p>
                       </label>
                     </div>
-                    
+
                     {loadingUpload && (
                       <div className="mt-2 text-sm text-gray-500 flex items-center gap-2">
                         <div className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-nu-green-600 border-t-transparent"></div>
@@ -576,7 +598,7 @@ export default function AdminSarpras() {
                   </svg>
                 </button>
               </div>
-              
+
               <div className="p-6">
                 {renderList()}
               </div>
