@@ -20,7 +20,8 @@ interface MitraDetail {
 }
 
 export default function MitraDetailPage() {
-  const { id } = useParams()
+  const params = useParams()
+  const id = params?.id as string
   const [mitra, setMitra] = useState<MitraDetail | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -56,7 +57,7 @@ export default function MitraDetailPage() {
           <p className="text-5xl">😔</p>
           <h2 className="text-lg font-semibold text-gray-700">Mitra tidak ditemukan</h2>
           <Link href="/humas" className="text-nu-green-600 text-sm hover:underline inline-flex items-center gap-1">
-            ← Kembali ke HUMAS
+            Kembali ke HUMAS
           </Link>
         </div>
       </div>
@@ -65,10 +66,8 @@ export default function MitraDetailPage() {
 
   return (
     <main className="bg-[#f5f6f8] min-h-screen">
-
-      {/* ── Hero ── */}
+      {/* Hero */}
       <div className="relative overflow-hidden bg-nu-green-900">
-        {/* Subtle texture layer */}
         <div className="absolute inset-0 opacity-10"
           style={{
             backgroundImage: `radial-gradient(circle at 20% 50%, #ffffff 1px, transparent 1px),
@@ -90,7 +89,6 @@ export default function MitraDetailPage() {
           </Link>
 
           <div className="flex items-end gap-8 flex-wrap">
-            {/* Logo card — glassmorphism */}
             <div className="w-24 h-24 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-xl flex-shrink-0">
               {mitra.logoUrl ? (
                 <Image src={mitra.logoUrl} alt={mitra.nama} width={64} height={64} className="object-contain p-2" />
@@ -104,18 +102,18 @@ export default function MitraDetailPage() {
               <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">{mitra.nama}</h1>
               <p className="text-white/60 text-sm mt-1.5">
                 {mitra.kota || 'Lokasi tidak tersedia'}
-                {mitra.deskripsi && <> &middot; {mitra.deskripsi}</>}
+                {mitra.deskripsi && <> - {mitra.deskripsi}</>}
               </p>
 
               <div className="flex gap-2 mt-4 flex-wrap">
                 {(mitra.status === 'mou' || mitra.status === 'keduanya') && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white text-xs font-medium backdrop-blur-sm">
-                    <span className="text-[10px]">📄</span> MOU
+                    MOU
                   </span>
                 )}
                 {(mitra.status === 'pkl' || mitra.status === 'keduanya') && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white text-xs font-medium backdrop-blur-sm">
-                    <span className="text-[10px]">🏭</span> PKL
+                    PKL
                   </span>
                 )}
               </div>
@@ -124,13 +122,12 @@ export default function MitraDetailPage() {
         </div>
       </div>
 
-      {/* ── Body ── */}
+      {/* Body */}
       <div className="container mx-auto px-4 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-7">
 
           {/* Konten Utama */}
           <div className="lg:col-span-2 space-y-6">
-
             {/* Tentang Mitra */}
             <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)] p-7">
               <div className="flex items-center gap-2.5 mb-5">
@@ -143,7 +140,7 @@ export default function MitraDetailPage() {
 
               {mitra.website && (
                 <div className="mt-6 pt-5 border-t border-gray-100">
-                  
+                  <a
                     href={mitra.website}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -186,7 +183,6 @@ export default function MitraDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-5">
-
             {/* Info Kerjasama */}
             <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)] p-6">
               <div className="flex items-center gap-2.5 mb-5">
@@ -238,7 +234,7 @@ export default function MitraDetailPage() {
                 href="/humas"
                 className="block text-center border border-gray-200 hover:bg-gray-50 text-gray-600 py-2.5 rounded-xl text-sm transition-colors"
               >
-                ← Kembali ke Daftar Mitra
+                Kembali ke Daftar Mitra
               </Link>
             </div>
           </div>
