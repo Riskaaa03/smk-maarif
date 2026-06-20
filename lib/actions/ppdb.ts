@@ -1,204 +1,94 @@
-import fs from 'fs'
-import path from 'path'
+'use server' // 👈 Wajib ada di baris pertama agar Next.js tahu ini dieksekusi di server
 
-// @ts-ignore
-const Database = require('better-sqlite3')
+import db from '@/lib/db'
+import { ppdbSchema, type PPDBFormData } from '@/lib/validations/ppdb'
 
-// Pastikan folder database ada
-const dbDir = path.join(process.cwd(), 'database')
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true })
+// Interface untuk response balik ke client component
+export interface PPDBSubmitResponse {
+  success: boolean
+  message?: string
+  nomorPendaftaran?: string
+  errors?: Array<{ field: string; message: string }>
 }
 
-const db = new Database(path.join(dbDir, 'galeri.db'))
+// Fungsi pembantu untuk generate nomor pendaftaran otomatis secara acak/sequential
+async function generateNomorPendaftaran(): Promise<string> {
+  const tahun = new Date().getFullYear()
+  const randomDigits = Math.floor(1000 + Math.random() * 9000) // 4 digit acak
+  return `PPDB-${tahun}-${randomDigits}`
+}
 
-// ============================================================
-// TABEL GALERI
-// ============================================================
-db.exec(`
-  CREATE TABLE IF NOT EXISTS galeri (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    description TEXT,
-    kategori TEXT DEFAULT 'kegiatan',
-    imageUrl TEXT NOT NULL,
-    date TEXT DEFAULT (date('now')),
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
+export async function submitPPDB(formData: PPDBFormData): Promise<PPDBSubmitResponse> {
+  // 1. Validasi ulang data di sisi server menggunakan ppdbSchema yang benar
+  const parsed = ppdbSchema.safeParse(formData)
 
-// ============================================================
-// TABEL MITRA INDUSTRI
-// ============================================================
-db.exec(`
-  CREATE TABLE IF NOT EXISTS mitra_industri (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nama TEXT NOT NULL,
-    deskripsi TEXT,
-    deskripsiPanjang TEXT,
-    logoUrl TEXT,
-    fotoKerjasama TEXT,
-    website TEXT,
-    kota TEXT DEFAULT '',
-    status TEXT DEFAULT 'mou',
-    urutan INTEGER DEFAULT 0,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
+  if (!parsed.success) {
+    return {
+      success: false,
+      message: 'Validasi data gagal di server.',
+      errors: parsed.error.errors.map((err) => ({
+        field: err.path[0] as string,
+        message: err.message,
+      })),
+    }
+  }
 
-// ============================================================
-// TABEL PRESTASI
-// ============================================================
-db.exec(`
-  CREATE TABLE IF NOT EXISTS prestasi (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    program_slug TEXT NOT NULL,
-    nama_kejuaraan TEXT NOT NULL,
-    tingkat TEXT NOT NULL,
-    tahun INTEGER NOT NULL,
-    keterangan TEXT,
-    peringkat TEXT,
-    penyelenggara TEXT,
-    foto_url TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
+  try {
+    const dataSiswa = parsed.data
+    const nomorPendaftaran = await generateNomorPendaftaran()
 
-// ============================================================
-// TABEL BERITA
-// ============================================================
-db.exec(`
-  CREATE TABLE IF NOT EXISTS berita (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    judul TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
-    ringkasan TEXT,
-    konten TEXT,
-    kategori TEXT DEFAULT 'berita',
-    thumbnail_url TEXT,
-    penulis TEXT DEFAULT 'Admin',
-    status TEXT DEFAULT 'draft',
-    views INTEGER DEFAULT 0,
-    tanggal_publikasi DATETIME DEFAULT CURRENT_TIMESTAMP,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
+    // 2. Insert data langsung ke SQLite menggunakan sintaks better-sqlite3 native
+    const stmt = db.prepare(`
+      INSERT INTO ppdb (
+        nomor_pendaftaran, nama_siswa, jurusan, nik, nisn, 
+        tempat_lahir, tanggal_lahir, asal_sekolah, alamat_siswa, 
+        nomor_wa, email, jenis_kelamin, agama, memiliki_kip, 
+        nama_kip, nomor_kip, direkomendasikan_oleh, nama_orang_tua, 
+        pekerjaan_orang_tua, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
 
-// ============================================================
-// TABEL PPDB
-// ============================================================
-db.exec(`
-  CREATE TABLE IF NOT EXISTS ppdb (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nomor_pendaftaran TEXT UNIQUE NOT NULL,
-    nama_siswa TEXT NOT NULL,
-    jurusan TEXT NOT NULL,
-    nik TEXT NOT NULL,
-    nisn TEXT NOT NULL,
-    tempat_lahir TEXT NOT NULL,
-    tanggal_lahir TEXT NOT NULL,
-    asal_sekolah TEXT NOT NULL,
-    alamat_siswa TEXT NOT NULL,
-    nomor_wa TEXT NOT NULL,
-    email TEXT NOT NULL,
-    jenis_kelamin TEXT NOT NULL,
-    agama TEXT NOT NULL,
-    memiliki_kip TEXT DEFAULT 'TIDAK',
-    nama_kip TEXT,
-    nomor_kip TEXT,
-    direkomendasikan_oleh TEXT,
-    nama_orang_tua TEXT NOT NULL,
-    pekerjaan_orang_tua TEXT NOT NULL,
-    status TEXT DEFAULT 'pending',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
+    stmt.run(
+      nomorPendaftaran,
+      dataSiswa.namaLengkap,
+      dataSiswa.programKeahlianPilihan1, // mapping ke kolom 'jurusan'
+      dataSiswa.nik,
+      dataSiswa.nisn,
+      dataSiswa.tempatLahir,
+      dataSiswa.tanggalLahir,
+      dataSiswa.asalSekolah,
+      dataSiswa.alamat,                 // mapping ke kolom 'alamat_siswa'
+      dataSiswa.nomorHP,                // mapping ke kolom 'nomor_wa'
+      dataSiswa.email || '',
+      dataSiswa.jenisKelamin,
+      dataSiswa.agama,
+      dataSiswa.memilikiKip,
+      dataSiswa.namaKip || null,
+      dataSiswa.nomorKip || null,
+      dataSiswa.direkomendasikanOleh || null,
+      dataSiswa.namaOrangTua,
+      dataSiswa.pekerjaanOrangTua,
+      'pending'                         // status default awal
+    )
 
-// ============================================================
-// TABEL PKL (TEMPAT PRAKTIK KERJA LAPANGAN)
-// ============================================================
-db.exec(`
-  CREATE TABLE IF NOT EXISTS pkl (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nama_perusahaan TEXT NOT NULL,
-    bidang TEXT NOT NULL,
-    kota TEXT NOT NULL,
-    alamat TEXT,
-    kontak TEXT,
-    kuota INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'aktif',
-    urutan INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
+    return {
+      success: true,
+      nomorPendaftaran,
+    }
+  } catch (error: any) {
+    console.error('❌ PPDB_SUBMIT_SERVER_ERROR:', error)
+    
+    // Deteksi jika NIK atau NISN duplikat di database
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return {
+        success: false,
+        message: 'Nomor NIK, NISN, atau Nomor Pendaftaran tersebut sudah terdaftar di sistem.',
+      }
+    }
 
-// ============================================================
-// TABEL ALUMNI
-// ============================================================
-db.exec(`
-  CREATE TABLE IF NOT EXISTS alumni (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nama TEXT NOT NULL,
-    angkatan INTEGER NOT NULL,
-    program_keahlian TEXT NOT NULL,
-    tempat_kerja TEXT,
-    posisi TEXT,
-    foto_url TEXT,
-    testimonial TEXT,
-    status TEXT DEFAULT 'aktif',
-    urutan INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
-
-// ============================================================
-// TABEL SARANA & PRASARANA
-// ============================================================
-
-// 1. Fasilitas Utama
-db.exec(`
-  CREATE TABLE IF NOT EXISTS fasilitas_utama (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nama TEXT NOT NULL,
-    emoji TEXT DEFAULT '🏫',
-    deskripsi TEXT NOT NULL,
-    thumbnail TEXT,
-    urutan INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'aktif',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
-
-// 2. Sarana Pendukung
-db.exec(`
-  CREATE TABLE IF NOT EXISTS sarana_pendukung (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nama TEXT NOT NULL,
-    emoji TEXT DEFAULT '🔧',
-    deskripsi TEXT NOT NULL,
-    thumbnail TEXT,
-    urutan INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'aktif',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
-
-// 3. Statistik Fasilitas
-db.exec(`
-  CREATE TABLE IF NOT EXISTS statistik_fasilitas (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    angka TEXT NOT NULL,
-    satuan TEXT NOT NULL,
-    emoji TEXT DEFAULT '📊',
-    urutan INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'aktif',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
-
-console.log('✅ Database siap digunakan')
-
-export default db
+    return {
+      success: false,
+      message: 'Gagal menyimpan data ke database server. Silakan coba lagi nanti.',
+    }
+  }
+}
